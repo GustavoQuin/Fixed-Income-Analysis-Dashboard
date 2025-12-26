@@ -1,0 +1,268 @@
+Financial Portfolio DAX Measures
+
+--------------------------------------
+
+Avg Price (ISIN) = AVERAGEX(
+               VALUES( FactBonds[ISIN]),
+               CALCULATE( AVERAGE(FactBonds[Price]))) -- Simple avg price by ISIN
+
+
+
+Avg Rating Score =
+DIVIDE(
+    SUMX(
+        FactBonds,
+        FactBonds[MarketValue]*RELATED(RatingMap[Score])),
+        [Total Market Value])
+
+
+
+Coupons YTD =
+VAR YTD_Dates = DATESYTD('Calendar'[Date])
+RETURN
+CALCULATE(SUM(Coupons[CouponAmount]),
+          TREATAS(YTD_Dates, Coupons[CouponDate]))
+
+
+Credit VaR = SUMX(
+                FactBonds, FactBonds[MarketValue]*RELATED(CreditShock[Shock]))
+
+
+DV01 = SUMX(FactBonds, FactBonds[Duration]*FactBonds[MarketValue]*0.0001)
+
+
+Last Avg Price (ISIN) =
+AVERAGEX(
+    VALUES(FactBonds[ISIN]),
+    VAR LastDateForISIN =
+        CALCULATE( MAX( FactBonds[SettlementDate]))
+    RETURN
+        CALCULATE(
+            AVERAGE (FactBonds[Price] ),
+            FactBonds[SettlementDate] = LastDateForISIN)) -- Last data for ISIN
+
+
+Macaulay Duration =
+AVERAGEX(
+    FactBonds,
+    DURATION(
+        FactBonds[SettlementDate],
+        FactBonds[MaturityDate],
+        FactBonds[CouponRate]/100,
+        FactBonds[Yield]/100,
+        2,
+        0))
+
+
+MV Last Month =
+VAR LastDateWithData =
+    MAX ( FactBonds[SettlementDate] )
+VAR StartLastMonth =
+    DATE ( YEAR ( LastDateWithData ), MONTH ( LastDateWithData ), 1 )
+VAR EndLastMonth =
+    EOMONTH ( LastDateWithData, 0 )
+RETURN
+CALCULATE (
+    [Total Market Value],
+    FILTER (
+        ALL ( 'Calendar'),
+        'Calendar'[Date] >= StartLastMonth
+            && 'Calendar'[Date] <= EndLastMonth))
+
+MV MoM % =
+VAR prev = [MV Previous Month]
+VAR curr = [MV Last Month]
+RETURN IF ( NOT ISBLANK ( prev ), DIVIDE ( curr - prev, prev ) )
+
+
+MV MoM ABS =
+VAR prev = [MV Previous Month]
+VAR curr = [MV Last Month]
+RETURN IF ( NOT ISBLANK ( prev ), curr - prev )
+
+
+
+MV Previous Month =
+VAR LastDateWithData =
+    MAX ( FactBonds[SettlementDate] )
+VAR PrevMonthDate =
+    EOMONTH ( LastDateWithData, -1 )
+VAR StartPrevMonth =
+    DATE ( YEAR ( PrevMonthDate ), MONTH ( PrevMonthDate ), 1 )
+VAR EndPrevMonth =
+    EOMONTH ( PrevMonthDate, 0 )
+RETURN
+CALCULATE (
+    [Total Market Value],
+    FILTER (
+        ALL ( 'Calendar' ),
+        'Calendar'[Date] >= StartPrevMonth
+            && 'Calendar'[Date] <= EndPrevMonth))
+
+
+
+MV Start of Period =
+VAR StartDate =
+   CALCULATE(MIN('Calendar'[Date]), ALLSELECTED('Calendar'[Date]))
+RETURN
+CALCULATE([Total Market Value], 'Calendar'[Date] = StartDate)
+
+
+PnL Period =
+[Total Market Value] - [MV Start of Period]
+"Portfolio Modified Duration","
+DIVIDE(
+    SUMX(
+        FactBonds,
+        VAR Mac = 
+            DURATION(
+                FactBonds[SettlementDate],
+                FactBonds[MaturityDate],
+                FactBonds[CouponRate] / 100,
+                FactBonds[Yield] / 100,
+                2,
+                0)
+
+        VAR y = FactBonds[Yield] / 100
+        VAR m = 2
+        VAR Mod = Mac / (1 + y / m )
+        RETURN
+            Mod * FactBonds[MarketValue]),
+
+        [Total Market Value])
+
+
+Portfolio Yield (Wtd Compression) =
+DIVIDE(
+    SUMX(
+        FactBonds,
+        FactBonds[Bond Yield Compression (Yield Down, Price Up)] * FactBonds[MarketValue]),
+        [Total Market Value])
+
+
+Portfolio Yield (Wtd Stress) =
+DIVIDE(
+    SUMX(
+        FactBonds,
+        FactBonds[Bond Yield Stress (Yield Up, Prices Down)] * FactBonds[MarketValue]),
+        [Total Market Value])
+
+
+Portfolio Yield (Wtd) =
+DIVIDE(
+    SUMX(
+        FactBonds, (FactBonds[Yield]/100)*FactBonds[MarketValue]),
+        [Total Market Value])
+
+
+Rating Exposure % =
+DIVIDE([Total Market Value], CALCULATE([Total Market Value], ALL(FactBonds[Rating])))
+
+
+Rating Mix % =
+DIVIDE (
+    [Total Market Value],
+    CALCULATE ( [Total Market Value], ALL ( FactBonds[Rating] )))
+
+
+Sector Exposure = SUM(FactBonds[MarketValue])
+
+
+Sector Exposure % =
+DIVIDE(
+    [Sector Exposure],
+    CALCULATE([Total Market Value], ALL(FactBonds[Sector])))
+
+
+Total Market Value = SUM(FactBonds[MarketValue])
+
+Total Nominal = SUM(FactBonds[Nominal])
+
+
+Wtd Duration =
+   DIVIDE(
+    SUMX(FactBonds,FactBonds[Duration]*FactBonds[MarketValue]),
+    [Total Market Value])
+
+
+Wtd Spread Duration =
+DIVIDE(
+    SUMX(FactBonds, FactBonds[MarketValue]*FactBonds[Duration]*0.75),
+    [Total Market Value])
+
+
+Wtd YTM (by MV) =
+DIVIDE(
+    SUMX(FactBonds, FactBonds[Yield]*FactBonds[MarketValue]),
+    [Total Market Value]
+) 
+
+
+Calculated Columns and Tables
+
+RatingMap = DATATABLE("Rating", STRING, "Score", INTEGER,
+{
+    {"AAA", 1},
+    {"AA+", 2}, {"AA", 3}, {"AA-", 4},
+    {"A+", 5}, {"A", 6}, {"A-", 7},
+    {"BBB+", 8}, {"BBB", 9}, {"BBB-", 10},
+    {"BB+", 11}, {"BB", 12}, {"BB-", 13},
+    {"B+", 14}, {"B", 15}, {"B-", 16}})
+
+
+
+CreditShock = 
+DATATABLE (
+    "Rating", STRING,
+    "Shock", DOUBLE,
+    {
+        { "AAA",   -0.005 },
+        { "AA+",   -0.008 },
+        { "AA",    -0.010 },
+        { "AA-",   -0.012 },
+        { "A+",    -0.015 },
+        { "A",     -0.018 },
+        { "A-",    -0.020 },
+        { "BBB+",  -0.030 },
+        { "BBB",   -0.040 },
+        { "BBB-",  -0.050 },
+        { "BB+",   -0.070 },
+        { "BB",    -0.090 },
+        { "BB-",   -0.120 },
+        { "B+",    -0.150 },
+        { "B",     -0.180 },
+        { "B-",    -0.200 }
+    }
+)
+
+
+
+CC:
+
+YearsToMaturity = 
+DATEDIFF(
+    FactBonds[SettlementDate], FactBonds[MaturityDate], YEAR)
+
+Bond Yield Compression = 
+ VAR BaseYield =
+     FactBonds[Yield]/100
+ VAR ShockDelta =
+     RELATED(CreditShock[Shock])
+RETURN
+BaseYield + ShockDelta
+
+
+Bond Yield Stress = 
+VAR BaseYield = FactBonds[Yield] / 100
+VAR ShockDelta = RELATED(CreditShock[Shock])
+RETURN
+   BaseYield - ShockDelta
+ 
+
+
+
+
+
+
+
+
