@@ -1,0 +1,66 @@
+Notas y Supuestos del Modelo
+- Alcance y Nivel de Detalle
+El modelo incluye bonos cash (soberanos y corporativos), sin derivados.
+La tabla de hechos principal está a nivel de posición de fin de día: una fila por Cartera–ISIN–Fecha.
+- Precios y Valor de Mercado
+Los precios se consideran precios limpios salvo indicación contraria de la fuente.
+Valor de Mercado = Precio × Nominal (más devengado solo si viene en la fuente).
+Ante precios faltantes se puede arrastrar el último disponible o setear en cero, según reglas del origen.
+- Rendimientos y Duración
+El campo de rendimiento es yield to maturity en % anual.
+El rendimiento de cartera es ponderado por valor de mercado de cada bono.
+La duración se trae del sistema origen o se aproxima; el DV01 se basa en shocks paralelos pequeños (aproximación lineal).
+- Construcción de la Curva de Rendimiento
+YearsToMaturity se calcula a partir de SettlementDate y MaturityDate.
+La curva usa tramos de vencimiento (0–2 años, 2–5, 5–10, 10+), mostrando el rendimiento ponderado por tramo.
+Es una curva por buckets, no un modelo completo de estructura a plazo.
+Escenarios y Shocks
+Los shocks de tasa usan parámetros What-if (basis points) aplicados de forma global.
+Los shocks de crédito usan una tabla de mapeo Rating → Shock (CreditShock).
+Los resultados shockeados son vistas de escenario; no modifican la data base.
+- Ratings y Riesgo de Crédito
+Los ratings se mapean a una escala estándar (AAA…BB…B, etc.).
+El mix de rating y los shocks de crédito reflejan ratings actuales; no se modela explícitamente default ni matrices de migración.
+- Seguridad y Refresh
+El acceso se controla con Row-Level Security (RLS) estático (Por el uso de Power BI Desktop). Se crearon dos roles "Core Portfolio PM" y "Growth Portfolio PM"
+El refresh de datos es programado (por ejemplo, diario); cambios intradía fuera de esa ventana pueden no verse.
+Una vez exportados, los datos quedan fuera del control de RLS y deben manejarse según las políticas internas.
+- Limitaciones
+El modelo no cubre derivados, opcionalidad (OAS) ni modelos avanzados de curva.
+Las métricas están pensadas para análisis gerencial y comparación de escenarios, no para reemplazar al motor de riesgo oficial como sistema de registro.
+
+
+(ENG)
+
+
+Model Notes & Assumptions
+
+- Scope & Grain
+Model covers cash bonds (gov & corporate), no derivatives.
+Main fact table is end-of-day position level: one row per Portfolio–ISIN–Date.
+- Pricing & Market Value
+Prices are treated as clean prices unless stated otherwise by the source.
+Market Value = Price × Nominal (plus accrued interest only if provided).
+Missing prices may be carried forward or set to zero, depending on source rules.
+- Yields & Duration
+Yield field is yield to maturity in % per year.
+Portfolio yield is market-value-weighted across bonds.
+Duration is either loaded from upstream or approximated; DV01 is based on small, parallel rate shocks (linear approximation).
+Yield Curve Construction
+YearsToMaturity is derived from SettlementDate vs MaturityDate.
+Yield curve uses tenor buckets (e.g. 0–2y, 2–5y, 5–10y, 10y+) and shows weighted average yield per bucket.
+This is a bucketed curve, not a fitted term structure model.
+- Scenarios & Shocks
+Rate shocks use What-if parameters (basis points) applied globally.
+Credit shocks use a Rating → Shock mapping (CreditShock table).
+Shocked results are scenario views only; base data is not altered.
+- Ratings & Credit Risk
+Ratings are mapped to a standard rating scale (AAA…BB…B, etc.).
+Rating mix and credit shocks reflect current ratings only; no explicit default or migration modeling.
+Security & Refresh
+Access is controlled with STATIC Row-Level Security (RLS), since we only used Power BI Desktop. Two roles were created. "Core Portfolio PM" and "Growth Portfolio PM".
+Data refresh is scheduled (e.g. daily); intraday changes outside that window may not be visible.
+Exported data is outside RLS control and must follow internal data-handling policies.
+- Limitations
+Model does not cover derivatives, optionality (OAS), or advanced curve fitting.
+Metrics are designed for management insight and scenario comparison, not to replace the official risk engine as system of record.
